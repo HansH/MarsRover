@@ -38,12 +38,27 @@ DEVICEPORT: A | B | C | S1 | S2 | S3 | S4
 
 ### OPERATIONS LEVEL
 ```
-all lakes are found :=
+all lakes are found := { return context.discoveredLakes.length == context.targetLakes.length }
+away from obstacle := {
+	Obstacle a, b, prev;
+	double maxAngle = 0;
+	for (Obstacle cur : context.obstacles) {
+		if (prev != null) {
+			double angle = context.position.angleTo(prev) - context.position.angleTo(cur);
+			angle = angle % Math.PI*2 + Math.PI*2) % Math.PI*2)
+			if (angle > maxAngle) {
+				maxAngle = angle;
+				a = prev; b = current;
+			}
+		}
+		prev = currrent;
+	}
+	return context.position.angleTo(a) + maxAngle / 2f;
+}
 show lakes := 
-at lake :=
+at lake := 
 lake has not been probed :=
 collision in less than <distance> := 
-away from obstacle := 
 blink lights := turn lights on, wait 500 ms, turn lights off, wait 500 ms
 ```
 
