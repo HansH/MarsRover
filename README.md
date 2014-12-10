@@ -9,7 +9,7 @@ detect obstacles at (-10, 15) with touch sensor on master port S4
 detect obstacles at (10, 15) with color sensor on slave port S1
 detect obstacles at (5, 10) with ultrasonic sensor on slave port S2
 detect lakes at (0, 7) with color sensor on slave port S1 
-detect temperature at (0, 2) with temperature sensor on slave port S3 and motor on slave port A
+probe temperature at (0, 2) with temperature sensor on slave port S3 and motor on slave port A
 drive left with motor on master port A
 drive right with motor on master port B
 control left light with motor on master port C
