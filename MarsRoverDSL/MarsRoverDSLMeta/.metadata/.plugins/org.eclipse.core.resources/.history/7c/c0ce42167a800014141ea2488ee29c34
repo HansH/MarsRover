@@ -1,0 +1,9 @@
+grammar nl.marsrover.DSL with org.eclipse.xtext.common.Terminals
+
+generate dSL "http://www.marsrover.nl/DSL"
+
+Model:
+	greetings+=Greeting*;
+	
+Greeting:
+	'Hello' name=ID '!';

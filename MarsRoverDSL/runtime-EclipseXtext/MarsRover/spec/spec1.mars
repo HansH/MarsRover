@@ -1,0 +1,5 @@
+if all lakes are found, show lakes
+if not all lakes are found, drive forward
+if collision in less than 50 cm, steer away from obstacles
+if collision in less than 5cm, drive backward 15cm, steer away from obstacles
+if at lake and lake has not been probed, blink lights, probe lake, steer away from obstacles

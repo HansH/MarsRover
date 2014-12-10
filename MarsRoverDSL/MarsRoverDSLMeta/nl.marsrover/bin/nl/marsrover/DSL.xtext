@@ -1,0 +1,53 @@
+grammar nl.marsrover.DSL with org.eclipse.xtext.common.Terminals
+
+generate dSL "http://www.marsrover.nl/DSL"
+
+Specification:
+	rule+=Rule*
+;
+	
+Rule:
+	'if' conditionList = ConditionList ',' actionList = ActionList
+;
+
+ConditionList:
+	conditions += Condition ('and' conditions += Condition)*
+;
+
+Condition:
+	not ?= 'not' condition = Condition |
+	allLakes ?= 'all lakes are found' |
+	collision ?= 'collision in less than' distance = Distance |
+	atLake ?= 'at lake' |
+	isProbed ?= 'lake has not been probed'
+;
+
+
+ActionList:
+	actions += Action (',' actions += Action)*
+;
+
+Action:
+	showLakes ?= 'show lakes' |
+	driveDirection ?= 'drive' direction = Direction |
+	driveDistance ?= 'drive' direction = Direction distance = Distance |
+	steer ?= 'steer' angle = Angle |
+	probeLake ?= 'probe lake' |
+	blinkLights ?= 'blink lights'
+;
+
+Distance:
+	value = INT 'cm'
+;
+
+enum Direction:
+	FORWARD = 'forward' |
+	BACKWARD = 'backward'
+;
+
+Angle:
+	value = INT 'degrees' |
+	away ?= 'away from obstacles'
+;
+
+

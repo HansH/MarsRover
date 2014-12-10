@@ -1,0 +1,2 @@
+INDEX VERSION 1.127+C:\Users\Hans\workspace\DSL\MarsRoverDSL\runtime-EclipseXtext\.metadata\.plugins\org.eclipse.jdt.core
+1377047622.index
