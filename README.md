@@ -2,14 +2,14 @@
 ## DSL ideeen
 ### ROVER SPEC LEVEL
 ```
-detect obstacles with light sensor at (-10, 10) on master port S1
-detect obstacles with light sensor at (10, 10) on master port S2
-detect obstacles with touch sensor at (-2, 10) on master port S3
-detect obstacles with touch sensor at (-10, 15) on master port S4
-detect obstacles with color sensor at (10, 15) on slave port S1
-detect obstacles with ultrasonic sensor at (5, 10) on slave port S2
-detect lakes with color sensor at (0, 7) on slave port S1 
-detect temperature with temperature sensor on slave port S3 and motor on slave port A
+detect obstacles at (-10, 10) with light sensor on master port S1
+detect obstacles at (10, 10) with light sensor on master port S2
+detect obstacles at (-2, 10) with touch sensor on master port S3
+detect obstacles at (-10, 15) with touch sensor on master port S4
+detect obstacles at (10, 15) with color sensor on slave port S1
+detect obstacles at (5, 10) with ultrasonic sensor on slave port S2
+detect lakes at (0, 7) with color sensor on slave port S1 
+detect temperature at (0, 2) with temperature sensor on slave port S3 and motor on slave port A
 drive left with motor on master port A
 drive right with motor on master port B
 control left light with motor on master port C
@@ -18,10 +18,10 @@ control right light with motor on slave port C
 
 Mogelijke grammar:
 ```
-ACTION with DEVICE
+ACTION (at POSITION)? with DEVICE
 	
 ACTION: STRING
-DEVICE: DEVICETYPE (at POSITION)? on INTERFACE
+DEVICE: DEVICETYPE on INTERFACE
 DEVICETYPE: light sensor | touch sensor | color sensor | 
 	ultrasonic sensor | temperature sensor | motor
 POSITION: (REAL, REAL)
