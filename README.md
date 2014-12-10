@@ -34,6 +34,7 @@ DEVICEPORT: A | B | C | S1 | S2 | S3 | S4
 	* sensorlocaties?
 	* aansluitdiagram voor poorten?
 	* gezichtsveld van sensoren (touch en kleur lokaal, cone voor ultrasonic)?
+* Genereer *safe turning model*?
 
 ### OPERATIONS LEVEL
 ```
