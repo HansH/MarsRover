@@ -31,8 +31,8 @@ DEVICEPORT: A | B | C | S1 | S2 | S3 | S4
 ```
 * Genereer operations level editor
 * Genereer diagram van de robot:
-** sensorlocaties?
-** aansluitdiagram voor poorten?
+	* sensorlocaties?
+	* aansluitdiagram voor poorten?
 ** gezichtsveld van sensoren (touch en kleur lokaal, cone voor ultrasonic)?
 
 ### OPERATIONS LEVEL
