@@ -7,7 +7,7 @@ detect obstacles at (10, 10) with light sensor on master port S2
 detect obstacles at (-2, 10) with touch sensor on master port S3
 detect obstacles at (-10, 15) with touch sensor on master port S4
 detect obstacles at (10, 15) with color sensor on slave port S1
-detect obstacles at (5, 10) with ultrasonic sensor on slave port S2
+detect obstacles from (5, 10) with ultrasonic sensor on slave port S2
 detect lakes at (0, 7) with color sensor on slave port S1 
 probe temperature at (0, 2) with temperature sensor on slave port S3 and motor on slave port A
 drive left with motor on master port A
@@ -18,7 +18,7 @@ control right light with motor on slave port C
 
 Mogelijke grammar:
 ```
-ACTION (at POSITION)? with DEVICE
+ACTION ((at|from) POSITION)? with DEVICE
 	
 ACTION: STRING
 DEVICE: DEVICETYPE on INTERFACE
