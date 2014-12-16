@@ -3,9 +3,14 @@
  */
 package nl.marsrover.generator
 
+import nl.marsrover.dSL.Rule
+import nl.marsrover.dSL.Specification
 import org.eclipse.emf.ecore.resource.Resource
-import org.eclipse.xtext.generator.IGenerator
 import org.eclipse.xtext.generator.IFileSystemAccess
+import org.eclipse.xtext.generator.IGenerator
+import nl.marsrover.dSL.Action
+import nl.marsrover.dSL.Direction
+import nl.marsrover.dSL.Condition
 
 /**
  * Generates code from your model files on save.
@@ -15,10 +20,101 @@ import org.eclipse.xtext.generator.IFileSystemAccess
 class DSLGenerator implements IGenerator {
 	
 	override void doGenerate(Resource resource, IFileSystemAccess fsa) {
-//		fsa.generateFile('greetings.txt', 'People to greet: ' + 
-//			resource.allContents
-//				.filter(typeof(Greeting))
-//				.map[name]
-//				.join(', '))
+		val spec = getSpecification(resource)
+		val name = resource.URI.lastSegment().split("\\.", 2).get(0)
+		val path = "generated/" + name + "/"
+		
+		//fsa.generateFile(path + name + "Robot.java", generateMainClass(spec, name, resource))
+		for(var i = 0; i < spec.rules.length; i++) {
+			val ruleName = name + "Rule" + i
+			fsa.generateFile(path + ruleName + ".java", generateRule(spec.rules.get(i), ruleName, name))
+		}
 	}
+	
+	
+	def generateRule(Rule rule, String ruleName, String specName) '''
+import lejos.robotics.subsumption.Behavior;
+
+
+public class «ruleName» implements Behavior
+{
+	private boolean suppressed = false;
+	private final «specName»Robot robot;
+	
+	public ExplorationBehavior(«specName»Robot robot)
+	{
+		this.robot = robot;
+	}
+
+	@Override
+	public boolean takeControl()
+	{
+		return «rule.conditionList.conditions.join(" || ", [condition | generateCondition(condition)])»;
+	}
+
+	@Override
+	public void action()
+	{
+		this.suppressed = false;
+		
+		«FOR action : rule.actionList.actions»
+		«generateAction(action)»
+		«ENDFOR»
+	}
+
+	@Override
+	public void suppress()
+	{
+		this.suppressed = true;
+	}
+
+}
+	'''
+	
+	def generateCondition(Condition condition) '''
+		«IF condition.not»
+			!(«generateCondition(condition.condition)»)
+		«ELSEIF condition.allLakes»
+			false
+		«ELSEIF condition.collision»
+			false
+		«ELSEIF condition.atLake»
+			false
+		«ELSEIF condition.isProbed»
+			false
+		«ENDIF»
+	'''
+	
+	def generateAction(Action action) '''
+		«IF action.showLakes»
+			
+		«ELSEIF action.driveDirection»
+		«IF action.direction == Direction.FORWARD»
+			robot.pilot.forward();
+		«ELSE»
+			robot.pilot.backward();
+		«ENDIF»
+		
+		«ELSEIF action.driveDistance»
+			robot.pilot.travel(«IF action.direction == Direction.BACKWARD»-«ENDIF»«action.distance», true);
+		«ELSEIF action.steer»
+			robot.pilot.rotate(«IF action.angle.sign»-«ENDIF»«action.angle.value», true);
+		«ELSEIF action.probeLake»
+			rover.slave.probeLake();
+		«ELSEIF action.blinkLights»
+			rover.slave.lampOn();
+		«ENDIF»
+		while (!this.suppressed && this.robot.pilot.isMoving())
+		Thread.yield();
+		this.robot.pilot.stop();
+	'''
+	
+	def generateMainClass(Specification spec, String name, Resource resource) '''
+	
+	'''
+	
+	def getSpecification(Resource resource) {
+		return resource.allContents.head as Specification
+	}
+	
 }

@@ -3,7 +3,7 @@ grammar nl.marsrover.DSL with org.eclipse.xtext.common.Terminals
 generate dSL "http://www.marsrover.nl/DSL"
 
 Specification:
-	rule+=Rule*
+	rules+=Rule*
 ;
 	
 Rule:
@@ -46,7 +46,7 @@ enum Direction:
 ;
 
 Angle:
-	value = INT 'degrees' |
+	(sign ?= '-') value = INT 'degrees' |
 	away ?= 'away from obstacles'
 ;
 
