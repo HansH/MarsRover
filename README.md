@@ -2,14 +2,14 @@
 ## DSL ideeen
 ### ROVER SPEC LEVEL
 ```
-detect obstacles at (-10, 10) with light sensor on master port S1
-detect obstacles at (10, 10) with light sensor on master port S2
-detect obstacles at (-2, 10) with touch sensor on master port S3
-detect obstacles at (-10, 15) with touch sensor on master port S4
-detect obstacles at (10, 15) with color sensor on slave port S1
-detect obstacles from (5, 10) with ultrasonic sensor on slave port S2
-detect lakes at (0, 7) with color sensor on slave port S1 
-probe temperature at (0, 2) with temperature sensor on slave port S3 and motor on slave port A
+detect obstacles at (-65mm, 80mm) with light sensor on master port S1
+detect obstacles at (65mm, 80mm) with light sensor on master port S2
+detect obstacles at (-83mm, 155mm) with touch sensor on master port S3
+detect obstacles at (83mm, 155mm) with touch sensor on master port S4
+detect obstacles at (0mm, 80mm) with color sensor on slave port S1
+detect obstacles from (57mm, 108mm) with ultrasonic sensor on slave port S2
+detect lakes at (0mm, 80mm) with color sensor on slave port S1 
+probe temperature at (0mm, 100mm) with temperature sensor on slave port S3 and motor on slave port A
 drive left with motor on master port A
 drive right with motor on master port B
 control left light with motor on master port C
