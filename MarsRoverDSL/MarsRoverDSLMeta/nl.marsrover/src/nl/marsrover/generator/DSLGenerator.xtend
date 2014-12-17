@@ -28,6 +28,7 @@ class DSLGenerator implements IGenerator {
 	
 	
 	def generateRule(Rule rule, String ruleName, String specName) '''
+import java.io.IOException;
 import lejos.robotics.subsumption.Behavior;
 
 
@@ -35,8 +36,9 @@ public class «ruleName» implements Behavior
 {
 	private boolean suppressed = false;
 	private final «specName»Robot robot;
+	private static final int TRESHOLD = 80;
 	
-	public ExplorationBehavior(«specName»Robot robot)
+	public «ruleName»(«specName»Robot robot)
 	{
 		this.robot = robot;
 	}
@@ -44,8 +46,32 @@ public class «ruleName» implements Behavior
 	@Override
 	public boolean takeControl()
 	{
-		return «rule.conditionList.conditions.join(" || ", [condition | generateCondition(condition)])»;
+		return «rule.conditionList.conditions.join(" && ", [condition | generateCondition(condition)])»;
 	}
+	
+	«IF rule.conditionList.conditions.exists[condition | condition.atLake]»
+	private boolean atLake() {
+		try {
+			return robot.slave.readColor() > 1;
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
+	«ENDIF»
+	
+	«IF rule.conditionList.conditions.exists[condition | condition.isNotProbed]»
+	private boolean isProbed() {
+		try {
+			return robot.probed.containsKey(robot.slave.readColor());
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+		return true;
+	}
+	«ENDIF»
 
 	@Override
 	public void action()
@@ -72,11 +98,12 @@ public class «ruleName» implements Behavior
 		«ELSEIF condition.allLakes»
 			robot.toProbe.isEmpty()
 		«ELSEIF condition.collision»
-			(robot.leftTouchSensor.isPressed() || robot.rightTouchSensor.isPressed())
+			(robot.touchSensorLeft.isPressed() || robot.touchSensorRight.isPressed() || 
+			robot.lightSensorLeft.getLightValue() > TRESHOLD || robot.lightSensorRight.getLightValue() > TRESHOLD)
 		«ELSEIF condition.atLake»
-			robot.slave.readColor() > 1
-		«ELSEIF condition.isProbed»
-			robot.toProbe.contains(robot.slave.readColor())
+			atLake()
+		«ELSEIF condition.isNotProbed»
+			!isProbed()
 		«ENDIF»
 	'''
 	
@@ -93,13 +120,22 @@ public class «ruleName» implements Behavior
 		«ENDIF»
 		
 		«ELSEIF action.driveDistance»
-			robot.pilot.travel(«IF action.direction == Direction.BACKWARD»-«ENDIF»«action.distance», true);
+			robot.pilot.travel(«IF action.direction == Direction.BACKWARD»-«ENDIF»«action.distance.value», true);
 		«ELSEIF action.steer»
+		«IF action.angle.away»
+			robot.pilot.rotate(90, true);
+		«ELSE»
 			robot.pilot.rotate(«IF action.angle.sign»-«ENDIF»«action.angle.value», true);
+		«ENDIF»
 		«ELSEIF action.probeLake»
-			robot.probed.put(rover.slave.readColor(), rover.slave.probeLake());
+			try {
+				robot.probed.put(robot.slave.readColor(), robot.slave.probeLake());
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+			}
 		«ELSEIF action.blinkLights»
-			rover.slave.lampOn();
+			robot.slave.lampOn();
 		«ENDIF»
 		
 		while (!this.suppressed && this.robot.pilot.isMoving()) {
@@ -109,105 +145,25 @@ public class «ruleName» implements Behavior
 	'''
 	
 	def generateMainClass(Specification spec, String name, Resource resource) '''
-import java.io.IOException;
-
-import javax.microedition.lcdui.Alert;
-import javax.microedition.lcdui.Display;
-import javax.microedition.lcdui.Ticker;
-
-import lejos.nxt.Button;
-import lejos.nxt.LCD;
-import lejos.nxt.LightSensor;
-import lejos.nxt.Motor;
-import lejos.nxt.MotorPort;
-import lejos.nxt.SensorPort;
-import lejos.nxt.Sound;
-import lejos.nxt.TouchSensor;
-import lejos.nxt.UltrasonicSensor;
-import lejos.nxt.comm.Bluetooth;
-import lejos.nxt.remote.RemoteNXT;
-import lejos.robotics.RegulatedMotor;
-import lejos.robotics.localization.OdometryPoseProvider;
-import lejos.robotics.navigation.DifferentialPilot;
-import lejos.robotics.subsumption.Arbitrator;
 import lejos.robotics.subsumption.Behavior;
 
-public class Robot {
-	// Physical properties of the Rover
-	public static final double WHEEL_DIAMETER = 56; // mm
-	public static final double TRACK_WIDTH = 110; // mm
-	// Constants
-	public static final int ULTRASONIC_RATE = 10;
-	public static final double TRAVEL_SPEED = 100; // 100 mm/s
-	public static final double ROTATE_SPEED = 100; // 100 degrees/second
-	
-	public DifferentialPilot pilot;
-	
-	public Lamp lamp;
-	public LightSensor lightSensorLeft;
-	public LightSensor lightSensorRight;
-	public TouchSensor touchSensorLeft;
-	public TouchSensor touchSensorRight;
-	public UltrasonicSensor ultrasonicSensor;
-	
-	public RemoteMarsSlave slave;
+public class «name»Robot extends BaseRobot {
 	
 	public static void main(String[] args) {
-		new Robot().run();
+		new «name»Robot().run();
+	}
+	
+	public «name»Robot() {
+		super();
 	}
 
-	private void run() {
-		this.prepareRobot();
-		Button.waitForAnyPress();
-		
-		Behavior[] behaviors = {
+	@Override
+	protected Behavior[] getBehaviors() {
+		return new Behavior[] {
 			«FOR i : 0..spec.rules.length - 1»
-				new Rule«i»(this),
+				new «name»Rule«i»(this),
 			«ENDFOR»
 		};
-		new Arbitrator(behaviors).start();
-	}
-
-	private void prepareRobot()
-	{
-		RegulatedMotor leftMotor = Motor.A;
-		RegulatedMotor rightMotor = Motor.B;
-		
-		this.lightSensorLeft = new LightSensor(SensorPort.S1);
-		this.lightSensorRight = new LightSensor(SensorPort.S2);
-		this.touchSensorLeft = new TouchSensor(SensorPort.S3);
-		this.touchSensorRight = new TouchSensor(SensorPort.S4);
-		
-		this.pilot = new DifferentialPilot(WHEEL_DIAMETER, TRACK_WIDTH, leftMotor, rightMotor);
-		this.pilot.setRotateSpeed(ROTATE_SPEED);
-		this.pilot.setTravelSpeed(TRAVEL_SPEED);
-		
-		try {
-			RemoteNXT remote = new RemoteNXT("Rover2", Bluetooth.getConnector());
-			remote.startProgram("MarsSlave.nxj");
-			remote.close();
-		} catch (IOException ex)
-		{ }
-		
-		this.slave = new RemoteMarsSlave();
-		this.slave.connect("Rover2");
-		
-		calibrateLightSensors();
-	}
-
-	private void calibrateLightSensors() {
-		LCD.drawString("Place both", 0, 0);
-		LCD.drawString("lightsensors", 0, 1);
-		LCD.drawString("on black", 0, 2);
-		Button.waitForAnyPress();
-		lightSensorLeft.calibrateLow();
-		lightSensorRight.calibrateLow();
-		
-		LCD.drawString("white", 3, 2);
-		Button.waitForAnyPress();
-		lightSensorLeft.calibrateHigh();
-		lightSensorRight.calibrateHigh();
-		LCD.clear();
 	}
 }
 	'''

@@ -19,7 +19,7 @@ Condition:
 	allLakes ?= 'all lakes are found' |
 	collision ?= 'collision in less than' distance = Distance |
 	atLake ?= 'at lake' |
-	isProbed ?= 'lake has not been probed'
+	isNotProbed ?= 'lake has not been probed'
 ;
 
 
