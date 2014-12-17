@@ -12,11 +12,6 @@ import nl.marsrover.dSL.Action
 import nl.marsrover.dSL.Direction
 import nl.marsrover.dSL.Condition
 
-/**
- * Generates code from your model files on save.
- * 
- * see http://www.eclipse.org/Xtext/documentation.html#TutorialCodeGeneration
- */
 class DSLGenerator implements IGenerator {
 	
 	override void doGenerate(Resource resource, IFileSystemAccess fsa) {
@@ -24,7 +19,7 @@ class DSLGenerator implements IGenerator {
 		val name = resource.URI.lastSegment().split("\\.", 2).get(0)
 		val path = "generated/" + name + "/"
 		
-		//fsa.generateFile(path + name + "Robot.java", generateMainClass(spec, name, resource))
+		fsa.generateFile(path + name + "Robot.java", generateMainClass(spec, name, resource))
 		for(var i = 0; i < spec.rules.length; i++) {
 			val ruleName = name + "Rule" + i
 			fsa.generateFile(path + ruleName + ".java", generateRule(spec.rules.get(i), ruleName, name))
@@ -75,19 +70,21 @@ public class «ruleName» implements Behavior
 		«IF condition.not»
 			!(«generateCondition(condition.condition)»)
 		«ELSEIF condition.allLakes»
-			false
+			robot.toProbe.isEmpty()
 		«ELSEIF condition.collision»
-			false
+			(robot.leftTouchSensor.isPressed() || robot.rightTouchSensor.isPressed())
 		«ELSEIF condition.atLake»
-			false
+			robot.slave.readColor() > 1
 		«ELSEIF condition.isProbed»
-			false
+			robot.toProbe.contains(robot.slave.readColor())
 		«ENDIF»
 	'''
 	
 	def generateAction(Action action) '''
 		«IF action.showLakes»
-			
+			for (Integer lake : robot.probed.keySet()) {
+				System.out.println(lake + " was " + robot.probed.get(lake));
+			}
 		«ELSEIF action.driveDirection»
 		«IF action.direction == Direction.FORWARD»
 			robot.pilot.forward();
@@ -100,17 +97,119 @@ public class «ruleName» implements Behavior
 		«ELSEIF action.steer»
 			robot.pilot.rotate(«IF action.angle.sign»-«ENDIF»«action.angle.value», true);
 		«ELSEIF action.probeLake»
-			rover.slave.probeLake();
+			robot.probed.put(rover.slave.readColor(), rover.slave.probeLake());
 		«ELSEIF action.blinkLights»
 			rover.slave.lampOn();
 		«ENDIF»
-		while (!this.suppressed && this.robot.pilot.isMoving())
-		Thread.yield();
+		
+		while (!this.suppressed && this.robot.pilot.isMoving()) {
+			Thread.yield();
+		}
 		this.robot.pilot.stop();
 	'''
 	
 	def generateMainClass(Specification spec, String name, Resource resource) '''
+import java.io.IOException;
+
+import javax.microedition.lcdui.Alert;
+import javax.microedition.lcdui.Display;
+import javax.microedition.lcdui.Ticker;
+
+import lejos.nxt.Button;
+import lejos.nxt.LCD;
+import lejos.nxt.LightSensor;
+import lejos.nxt.Motor;
+import lejos.nxt.MotorPort;
+import lejos.nxt.SensorPort;
+import lejos.nxt.Sound;
+import lejos.nxt.TouchSensor;
+import lejos.nxt.UltrasonicSensor;
+import lejos.nxt.comm.Bluetooth;
+import lejos.nxt.remote.RemoteNXT;
+import lejos.robotics.RegulatedMotor;
+import lejos.robotics.localization.OdometryPoseProvider;
+import lejos.robotics.navigation.DifferentialPilot;
+import lejos.robotics.subsumption.Arbitrator;
+import lejos.robotics.subsumption.Behavior;
+
+public class Robot {
+	// Physical properties of the Rover
+	public static final double WHEEL_DIAMETER = 56; // mm
+	public static final double TRACK_WIDTH = 110; // mm
+	// Constants
+	public static final int ULTRASONIC_RATE = 10;
+	public static final double TRAVEL_SPEED = 100; // 100 mm/s
+	public static final double ROTATE_SPEED = 100; // 100 degrees/second
 	
+	public DifferentialPilot pilot;
+	
+	public Lamp lamp;
+	public LightSensor lightSensorLeft;
+	public LightSensor lightSensorRight;
+	public TouchSensor touchSensorLeft;
+	public TouchSensor touchSensorRight;
+	public UltrasonicSensor ultrasonicSensor;
+	
+	public RemoteMarsSlave slave;
+	
+	public static void main(String[] args) {
+		new Robot().run();
+	}
+
+	private void run() {
+		this.prepareRobot();
+		Button.waitForAnyPress();
+		
+		Behavior[] behaviors = {
+			«FOR i : 0..spec.rules.length - 1»
+				new Rule«i»(this),
+			«ENDFOR»
+		};
+		new Arbitrator(behaviors).start();
+	}
+
+	private void prepareRobot()
+	{
+		RegulatedMotor leftMotor = Motor.A;
+		RegulatedMotor rightMotor = Motor.B;
+		
+		this.lightSensorLeft = new LightSensor(SensorPort.S1);
+		this.lightSensorRight = new LightSensor(SensorPort.S2);
+		this.touchSensorLeft = new TouchSensor(SensorPort.S3);
+		this.touchSensorRight = new TouchSensor(SensorPort.S4);
+		
+		this.pilot = new DifferentialPilot(WHEEL_DIAMETER, TRACK_WIDTH, leftMotor, rightMotor);
+		this.pilot.setRotateSpeed(ROTATE_SPEED);
+		this.pilot.setTravelSpeed(TRAVEL_SPEED);
+		
+		try {
+			RemoteNXT remote = new RemoteNXT("Rover2", Bluetooth.getConnector());
+			remote.startProgram("MarsSlave.nxj");
+			remote.close();
+		} catch (IOException ex)
+		{ }
+		
+		this.slave = new RemoteMarsSlave();
+		this.slave.connect("Rover2");
+		
+		calibrateLightSensors();
+	}
+
+	private void calibrateLightSensors() {
+		LCD.drawString("Place both", 0, 0);
+		LCD.drawString("lightsensors", 0, 1);
+		LCD.drawString("on black", 0, 2);
+		Button.waitForAnyPress();
+		lightSensorLeft.calibrateLow();
+		lightSensorRight.calibrateLow();
+		
+		LCD.drawString("white", 3, 2);
+		Button.waitForAnyPress();
+		lightSensorLeft.calibrateHigh();
+		lightSensorRight.calibrateHigh();
+		LCD.clear();
+	}
+}
 	'''
 	
 	def getSpecification(Resource resource) {
