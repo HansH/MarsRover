@@ -17,7 +17,7 @@ ConditionList:
 Condition:
 	not ?= 'not' condition = Condition |
 	allLakes ?= 'all lakes are found' |
-	collision ?= 'collision in less than' distance = Distance |
+	obstacle ?= 'obstacle in less than' distance = Distance |
 	atLake ?= 'at lake' |
 	isNotProbed ?= 'lake has not been probed'
 ;

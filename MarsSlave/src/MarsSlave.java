@@ -23,6 +23,7 @@ public class MarsSlave {
 	private final Lamp lamp;
 	private final CalibratedColorSensor colorSensor;
 	private final LakeProbe lakeProbe;
+	private final RateLimitedUltrasonicSensor ultrasonicSensor;
 	
 	public static void main(String[] args) {
 		new MarsSlave().run();
@@ -35,6 +36,7 @@ public class MarsSlave {
 			this.colorSensor.calibrateColors();
 		}
 		this.lakeProbe = new LakeProbe(MotorPort.A, SensorPort.S3);
+		this.ultrasonicSensor = new RateLimitedUltrasonicSensor(SensorPort.S2, 250);
 	}
 
 	private void run() {
@@ -94,9 +96,10 @@ public class MarsSlave {
 		this.outputStream.flush();
 	}
 
-	private void readUltrasonic() {
-		// TODO Auto-generated method stub
-		
+	private void readUltrasonic() throws IOException {
+		int distance = this.ultrasonicSensor.getDistance();
+		this.outputStream.writeInt(distance);
+		this.outputStream.flush();
 	}
 
 }

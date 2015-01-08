@@ -54,6 +54,13 @@ public class RemoteMarsSlave {
 		return color;
 	}
 	
+	public int readUltrasonic() throws IOException {
+		writeCommand(READ_ULTRASONIC);
+		int distance = this.inputStream.readInt();
+		System.out.println("distance:" + distance);
+		return distance;
+	}
+	
 	public float probeLake() throws IOException {
 		writeCommand(PROBE_LAKE);
 		return this.inputStream.readFloat();

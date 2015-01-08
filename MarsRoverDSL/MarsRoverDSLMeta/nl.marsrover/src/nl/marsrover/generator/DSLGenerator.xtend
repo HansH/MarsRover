@@ -26,10 +26,33 @@ class DSLGenerator implements IGenerator {
 		}
 	}
 	
+	def String toCamelCase(String line) {
+		val builder = new StringBuilder();
+		var nextUpper = true;
+		for (char c : line.toCharArray()) {
+			if (Character.isAlphabetic(c)) {
+				if(nextUpper) {
+					builder.append(Character.toUpperCase(c));
+				}
+				else {
+					builder.append(Character.toLowerCase(c));
+				}
+				nextUpper = false;
+			} else if (c == ',') {
+				builder.append("Then");
+				nextUpper = false;
+			} else if (Character.isWhitespace(c)) {
+				nextUpper = true;
+			}
+		}
+		return builder.toString();
+	}
+	
 	
 	def generateRule(Rule rule, String ruleName, String specName) '''
 import java.io.IOException;
 import lejos.robotics.subsumption.Behavior;
+import lejos.nxt.Button;
 
 
 public class «ruleName» implements Behavior
@@ -43,16 +66,21 @@ public class «ruleName» implements Behavior
 		this.robot = robot;
 	}
 
+	private boolean takesControl;
 	@Override
 	public boolean takeControl()
 	{
-		return «rule.conditionList.conditions.join(" && ", [condition | generateCondition(condition)])»;
+		this.takesControl = 
+			(«rule.conditionList.conditions.join(" && ", [condition | generateCondition(condition)])»);
+		return this.takesControl;
 	}
 	
 	«IF rule.conditionList.conditions.exists[condition | condition.atLake]»
+	private int color;
 	private boolean atLake() {
 		try {
-			return robot.slave.readColor() > 1;
+			this.color = robot.slave.readColor();
+			return this.color > 1;
 		}
 		catch (IOException e) {
 			e.printStackTrace();
@@ -63,24 +91,47 @@ public class «ruleName» implements Behavior
 	
 	«IF rule.conditionList.conditions.exists[condition | condition.isNotProbed]»
 	private boolean isProbed() {
+		return robot.probed.containsKey(this.color);
+	}
+	«ENDIF»
+	
+	private boolean obstacleIsRight = false;
+	«IF rule.conditionList.conditions.exists[condition | condition.obstacle]»
+	private boolean obstacle(int distance) {
+		boolean obstacleLeftDetected = false;
+		boolean obstacleRightDetected = false;
+		if(distance <= 15) {
+			obstacleRightDetected = robot.touchSensorRight.isPressed()  || 
+				robot.lightSensorRight.getLightValue() > TRESHOLD;
+			obstacleLeftDetected = robot.touchSensorLeft.isPressed()  || 
+				robot.lightSensorLeft.getLightValue() > TRESHOLD;
+		}
+		
 		try {
-			return robot.probed.containsKey(robot.slave.readColor());
+			obstacleRightDetected = obstacleRightDetected || robot.slave.readUltrasonic() < distance;
 		}
 		catch (IOException e) {
 			e.printStackTrace();
 		}
-		return true;
+		if(obstacleLeftDetected || obstacleRightDetected) {
+			this.obstacleIsRight = obstacleRightDetected;
+			return true;
+		}
+		return false;
 	}
 	«ENDIF»
 
 	@Override
 	public void action()
 	{
+		System.out.println("Rule: «ruleName»");
 		this.suppressed = false;
 		
 		«FOR action : rule.actionList.actions»
 		«generateAction(action)»
 		«ENDFOR»
+		
+		this.takesControl = false;
 	}
 
 	@Override
@@ -96,10 +147,9 @@ public class «ruleName» implements Behavior
 		«IF condition.not»
 			!(«generateCondition(condition.condition)»)
 		«ELSEIF condition.allLakes»
-			robot.toProbe.isEmpty()
-		«ELSEIF condition.collision»
-			(robot.touchSensorLeft.isPressed() || robot.touchSensorRight.isPressed() || 
-			robot.lightSensorLeft.getLightValue() > TRESHOLD || robot.lightSensorRight.getLightValue() > TRESHOLD)
+			robot.toProbe.size() == robot.probed.size()
+		«ELSEIF condition.obstacle»
+			obstacle(«condition.distance.value»)
 		«ELSEIF condition.atLake»
 			atLake()
 		«ELSEIF condition.isNotProbed»
@@ -109,9 +159,10 @@ public class «ruleName» implements Behavior
 	
 	def generateAction(Action action) '''
 		«IF action.showLakes»
-			for (Integer lake : robot.probed.keySet()) {
+			for (Integer lake : robot.probed.keyList()) {
 				System.out.println(lake + " was " + robot.probed.get(lake));
 			}
+			Button.waitForAnyPress();
 		«ELSEIF action.driveDirection»
 		«IF action.direction == Direction.FORWARD»
 			robot.pilot.forward();
@@ -123,13 +174,18 @@ public class «ruleName» implements Behavior
 			robot.pilot.travel(«IF action.direction == Direction.BACKWARD»-«ENDIF»«action.distance.value», true);
 		«ELSEIF action.steer»
 		«IF action.angle.away»
-			robot.pilot.rotate(90, true);
+			if(this.obstacleIsRight) {
+				robot.pilot.rotate(90, true);
+			}
+			else {
+				robot.pilot.rotate(-90, true);
+			}
 		«ELSE»
 			robot.pilot.rotate(«IF action.angle.sign»-«ENDIF»«action.angle.value», true);
 		«ENDIF»
 		«ELSEIF action.probeLake»
 			try {
-				robot.probed.put(robot.slave.readColor(), robot.slave.probeLake());
+				robot.probed.put(this.color, robot.slave.probeLake());
 			}
 			catch (IOException e) {
 				e.printStackTrace();
@@ -137,6 +193,7 @@ public class «ruleName» implements Behavior
 		«ELSEIF action.blinkLights»
 			robot.slave.lampOn();
 		«ENDIF»
+		
 		
 		while (!this.suppressed && this.robot.pilot.isMoving()) {
 			Thread.yield();

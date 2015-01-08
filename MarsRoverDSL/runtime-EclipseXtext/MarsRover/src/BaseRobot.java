@@ -12,12 +12,15 @@ import lejos.nxt.UltrasonicSensor;
 import lejos.nxt.comm.Bluetooth;
 import lejos.nxt.remote.RemoteNXT;
 import lejos.robotics.RegulatedMotor;
+import lejos.robotics.localization.OdometryPoseProvider;
 import lejos.robotics.navigation.DifferentialPilot;
 import lejos.robotics.subsumption.Arbitrator;
 import lejos.robotics.subsumption.Behavior;
+import lejos.util.Delay;
 
 
 public abstract class BaseRobot {
+	private static final String SLAVE_NAME = "NXT2";
 	// Physical properties of the Rover
 		public static final double WHEEL_DIAMETER = 56; // mm
 		public static final double TRACK_WIDTH = 110; // mm
@@ -29,8 +32,8 @@ public abstract class BaseRobot {
 		public DifferentialPilot pilot;
 		
 		public Lamp lamp;
-		public LightSensor lightSensorLeft;
-		public LightSensor lightSensorRight;
+		public CalibratedLightSensor lightSensorLeft;
+		public CalibratedLightSensor lightSensorRight;
 		public TouchSensor touchSensorLeft;
 		public TouchSensor touchSensorRight;
 		public UltrasonicSensor ultrasonicSensor;
@@ -38,7 +41,7 @@ public abstract class BaseRobot {
 		public RemoteMarsSlave slave;
 		
 		ArrayList<Integer> toProbe;
-		HashMap<Integer, Float> probed;
+		LinkedMap<Integer, Float> probed;
 		
 		public BaseRobot() {
 			this.toProbe = new ArrayList<Integer>();
@@ -46,12 +49,23 @@ public abstract class BaseRobot {
 			this.toProbe.add(3);
 			this.toProbe.add(4);
 			
-			this.probed = new HashMap<Integer, Float>();	
+			this.probed = new LinkedMap<Integer, Float>();	
 		}
 
 		protected void run() {
 			this.prepareRobot();
 			Button.waitForAnyPress();
+			
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					OdometryPoseProvider provider = new OdometryPoseProvider(pilot);
+					while (true) {
+						System.out.println(provider.getPose().getHeading());
+						Delay.msDelay(100);
+					}
+				}
+			}).start();
 			
 			new Arbitrator(getBehaviors()).start();
 		}
@@ -63,8 +77,8 @@ public abstract class BaseRobot {
 			RegulatedMotor leftMotor = Motor.A;
 			RegulatedMotor rightMotor = Motor.B;
 			
-			this.lightSensorLeft = new LightSensor(SensorPort.S1);
-			this.lightSensorRight = new LightSensor(SensorPort.S2);
+			this.lightSensorLeft = new CalibratedLightSensor(SensorPort.S1);
+			this.lightSensorRight = new CalibratedLightSensor(SensorPort.S2);
 			this.touchSensorLeft = new TouchSensor(SensorPort.S3);
 			this.touchSensorRight = new TouchSensor(SensorPort.S4);
 			
@@ -72,20 +86,27 @@ public abstract class BaseRobot {
 			this.pilot.setRotateSpeed(ROTATE_SPEED);
 			this.pilot.setTravelSpeed(TRAVEL_SPEED);
 			
+			System.out.println("Connecting to slave...");
+			
 			try {
-				RemoteNXT remote = new RemoteNXT("Rover2", Bluetooth.getConnector());
+				RemoteNXT remote = new RemoteNXT(SLAVE_NAME, Bluetooth.getConnector());
 				remote.startProgram("MarsSlave.nxj");
 				remote.close();
 			} catch (IOException ex)
 			{ }
 			
 			this.slave = new RemoteMarsSlave();
-			this.slave.connect("NXT2");
+			this.slave.connect(SLAVE_NAME);
+			System.out.println("Connected!");
 			
-			calibrateLightSensors();
+			if (!this.lightSensorLeft.isCalibrated() || !this.lightSensorRight.isCalibrated()) {
+				this.calibrateLightSensors();
+			}
 		}
 
 		private void calibrateLightSensors() {
+			LCD.clear();
+			
 			LCD.drawString("Place both", 0, 0);
 			LCD.drawString("lightsensors", 0, 1);
 			LCD.drawString("on black", 0, 2);
@@ -98,5 +119,8 @@ public abstract class BaseRobot {
 			lightSensorLeft.calibrateHigh();
 			lightSensorRight.calibrateHigh();
 			LCD.clear();
+			
+			lightSensorLeft.storeCalibrationData();
+			lightSensorRight.storeCalibrationData();
 		}
 }
